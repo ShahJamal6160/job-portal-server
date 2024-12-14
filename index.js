@@ -33,7 +33,7 @@ async function run() {
         // jobs related  apis
 
         const jobsCollection = client.db('jobPortal').collection('jobs');
-        const jobsApplicationCollection = client.db('jobPortal').collection('job-application');
+        const jobsApplicationCollection = client.db('jobPortal').collection('job_application');
 
         // সব ডাটা লোড করার জন্য -১
         app.get('/jobs', async (req, res) => {
@@ -53,10 +53,25 @@ async function run() {
 
         // job application apis
 
+        //application  এর ডাটা পাওয়ার জন্য
         app.get('/job-application', async (req, res) => {
             const email = req.query.email;
             const query = { applicant_email: email }
             const result = await jobsApplicationCollection.find(query).toArray();
+
+            // fokira way aggregate data
+            for(const application of result){
+                console.log(application.job_id)
+                const query1 = {_id: new ObjectId(application.job_id)}
+                const job = await jobsCollection.findOne(query1);
+                if(job){
+                    application.title = job.title;
+                    application.location = job.location;
+                    application.company = job.company;
+                    application.company_logo = job.company_logo;
+
+                }
+            }
             res.send(result);
         })
 
