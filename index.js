@@ -35,12 +35,21 @@ async function run() {
         const jobsCollection = client.db('jobPortal').collection('jobs');
         const jobsApplicationCollection = client.db('jobPortal').collection('job_application');
 
+        // jobs related api
         // সব ডাটা লোড করার জন্য -১
         app.get('/jobs', async (req, res) => {
+            // user login করলে ডাটা দেখাবে
+            const email = req.query.email;
+            let query = {};
+            if (email) {
+                query = { hr_email: email }
+            }
+
+
             const cursor = jobsCollection.find();
             const result = await cursor.toArray();
             res.send(result);
-        })
+        });
 
         // shown details 
 
@@ -49,7 +58,15 @@ async function run() {
             const query = { _id: new ObjectId(id) }
             const result = await jobsCollection.findOne(query);
             res.send(result);
+        });
+
+        app.post('/jobs', async (req, res) => {
+            const newJob = req.body;
+            const result = await jobsCollection.insertOne(newJob)
+            res.send(result);
         })
+
+
 
         // job application apis
 
@@ -60,11 +77,11 @@ async function run() {
             const result = await jobsApplicationCollection.find(query).toArray();
 
             // fokira way aggregate data
-            for(const application of result){
+            for (const application of result) {
                 console.log(application.job_id)
-                const query1 = {_id: new ObjectId(application.job_id)}
+                const query1 = { _id: new ObjectId(application.job_id) }
                 const job = await jobsCollection.findOne(query1);
-                if(job){
+                if (job) {
                     application.title = job.title;
                     application.location = job.location;
                     application.company = job.company;
