@@ -46,7 +46,7 @@ async function run() {
             }
 
 
-            const cursor = jobsCollection.find();
+            const cursor = jobsCollection.find(query);
             const result = await cursor.toArray();
             res.send(result);
         });
@@ -92,11 +92,59 @@ async function run() {
             res.send(result);
         })
 
+        // কোন কোন ইউজার apply করছে
+        app.get('/job-application/jobs/:job_id', async (req, res)=>{
+            const jobId = req.params.job_id;
+            const query = {job_id: jobId}
+            const result = await jobsApplicationCollection.find(query).toArray();
+            res.send(result);
+        })
+
         app.post('/job-application', async (req, res) => {
             const application = req.body;
             const result = await jobsApplicationCollection.insertOne(application)
+
+            // not best way, best way (use Aggregate)
+            //skip
+            const id = application.job_id;
+            const query = {_id: new ObjectId(id)}
+            const job = await jobsCollection.findOne(query);
+            console.log(job);
+
+            let newCount = 0;
+            if(job.applicationCount){
+                newCount = job.applicationCount + 1;
+            }
+            else{
+                newCount = 1;
+            }
+
+            // now update the job info
+
+            const filter = {_id: new ObjectId(id)}
+            const updateDoc = {
+                $set: {
+                    applicationCount: newCount
+                }
+            }
+
+            const updateResult = await jobsCollection.updateOne(filter, updateDoc)
+ 
             res.send(result);
 
+        });
+
+        app.patch('/job-application/:id', async(req, res)=>{
+            const id = req.params.id;
+            const data = req.body;
+            const filter = {_id: new ObjectId(id)};
+            const updatedDoc ={
+                $set: {
+                    status: data.status
+                }
+            }
+            const result = await jobsApplicationCollection.updateOne(filter, updatedDoc);
+            res.send(result);
         })
 
 
