@@ -1,5 +1,7 @@
 const express = require('express');
 const cors = require('cors');
+const jwt = require('jsonwebtoken');
+const cookieParser = require('cookie-parser');
 const app = express();
 require('dotenv').config();
 const port = process.env.PORT || 5000;
@@ -7,6 +9,7 @@ const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 
 app.use(cors());
 app.use(express.json());
+app.use(cookieParser());
 
 
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.usfrh.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`;
@@ -30,10 +33,29 @@ async function run() {
         await client.db("admin").command({ ping: 1 });
         console.log("Pinged your deployment. You successfully connected to MongoDB!");
 
-        // jobs related  apis
+
 
         const jobsCollection = client.db('jobPortal').collection('jobs');
         const jobsApplicationCollection = client.db('jobPortal').collection('job_application');
+
+
+        //Auth related APIs
+
+        app.post('/jwt', async (req, res) => {
+            const user = req.body;
+            const token = jwt.sign(user, process.env.JWT_SECRET, { expiresIn: '1h' });
+            res
+                .cookie('token', token, {
+                    httpOnly: true,
+                    secure: false, //http://localhost:5173/
+                })
+                .send({ success: true })
+        })
+        // app.post('/jwt', async (req, res) => {
+        //     const user = req.body;
+        //     const token = jwt.sign(user, 'secret', { expiresIn: '1h' });
+        //     res.send(token)
+        // })
 
         // jobs related api
         // সব ডাটা লোড করার জন্য -১
@@ -93,9 +115,9 @@ async function run() {
         })
 
         // কোন কোন ইউজার apply করছে
-        app.get('/job-application/jobs/:job_id', async (req, res)=>{
+        app.get('/job-application/jobs/:job_id', async (req, res) => {
             const jobId = req.params.job_id;
-            const query = {job_id: jobId}
+            const query = { job_id: jobId }
             const result = await jobsApplicationCollection.find(query).toArray();
             res.send(result);
         })
@@ -107,21 +129,21 @@ async function run() {
             // not best way, best way (use Aggregate)
             //skip
             const id = application.job_id;
-            const query = {_id: new ObjectId(id)}
+            const query = { _id: new ObjectId(id) }
             const job = await jobsCollection.findOne(query);
             console.log(job);
 
             let newCount = 0;
-            if(job.applicationCount){
+            if (job.applicationCount) {
                 newCount = job.applicationCount + 1;
             }
-            else{
+            else {
                 newCount = 1;
             }
 
             // now update the job info
 
-            const filter = {_id: new ObjectId(id)}
+            const filter = { _id: new ObjectId(id) }
             const updateDoc = {
                 $set: {
                     applicationCount: newCount
@@ -129,16 +151,16 @@ async function run() {
             }
 
             const updateResult = await jobsCollection.updateOne(filter, updateDoc)
- 
+
             res.send(result);
 
         });
 
-        app.patch('/job-application/:id', async(req, res)=>{
+        app.patch('/job-application/:id', async (req, res) => {
             const id = req.params.id;
             const data = req.body;
-            const filter = {_id: new ObjectId(id)};
-            const updatedDoc ={
+            const filter = { _id: new ObjectId(id) };
+            const updatedDoc = {
                 $set: {
                     status: data.status
                 }
